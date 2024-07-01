@@ -1,0 +1,371 @@
+import math
+
+import pygame
+from pygame import Color
+
+# pygame setup
+pygame.init()
+pygame.font.init()
+my_font = pygame.font.SysFont('Verdana', 50)
+screen = pygame.display.set_mode((700, 500))
+clock = pygame.time.Clock()
+running = True
+allowtreats = False
+allowghostspeed = False
+allowghostreverse = False
+ghostanimate = False
+time = 30 #40
+
+import random
+
+grid = [
+    [1, 1, 1, 1, 1, 1, 1],
+    [1, 0, 0, 0, 0, 0, 1],
+    [1, 0, 1, 0, 1, 0, 1],
+    [1, 0, 0, 0, 0, 0, 1],
+    [1, 1, 1, 1, 1, 1, 1]
+]
+
+ghost_path = [
+    (5, 3),
+]
+
+ghost_diff = [
+     (0, -10),
+     (0, -10),
+     (-10, 0),
+     (-10, 0),
+     (-10, 0),
+     (-10, 0),
+     (0, 10),
+     (0, 10),
+     (10, 0),
+     (10, 0),
+     (10, 0),
+     (10, 0),
+ ]
+
+clear = [
+    (1, 1),
+    (5, 1),
+    (3, 2),
+    (1, 3),
+    (5, 3),
+]
+
+
+class Player:
+
+    def __init__(self):
+        self.x = 3
+        self.y = 2
+        self.score = 0
+        self.x_offset = 0
+        self.y_offset = 0
+#        self.image = pygame.image.load('images/sprite_left.png')#.convert_alpha()
+
+    def getOffset(self):
+        return (self.x_offset, self.y_offset)
+
+    def animate(self):
+        if self.x_offset != 0:
+            self.x_offset = self.x_offset / 2
+            if self.x_offset < 5 and self.x_offset > -5:
+                self.x_offset = 0
+        if self.y_offset > 0:
+            self.y_offset = self.y_offset / 2
+            if self.y_offset < 5 and self.y_offset > -5:
+                self.y_offset = 0
+
+    def move(self, key, grid):
+        new_x = self.x
+        new_y = self.y
+        new_x_offset = 0
+        new_y_offset = 0
+        if key == pygame.K_w:
+            new_y = new_y - 1
+
+        if grid[new_y][new_x] == 0:
+            self.x = new_x
+            self.y = new_y
+            self.x_offset = new_x_offset
+
+    def is_at_position(self, x, y):
+        return x == self.x and y == self.y
+
+    def is_collide(self, g):
+        return g.is_at_position(self.x, self.y)
+
+    def get_character(self):
+        return self.character
+
+    def pickup_treat(self, t):
+        if t.is_at_position(self.x, self.y):
+            self.score = self.score + 1
+            print("score: ", self.score)
+            t.player_eats()
+            t.set_invisible()
+
+    def reduce_score(self):
+        self.score = self.score - 1
+        print("score: ", self.score)
+
+    def draw(self, x, y):
+        text_surface = my_font.render("Score: " + str(self.score), True, Color("black"))
+        screen.blit(text_surface, (200, 20))
+        dx, dy = self.getOffset()
+        if self.is_at_position(x, y):
+            rect = pygame.draw.rect(screen, Color("blue"), ((x * 100) + dx + 20, (y * 100) + dy + 20, 60, 60))
+#            screen.blit(self.image, rect)
+
+class Treat():
+
+    def __init__(self):
+        self.index = 0
+        self.count = 0
+        self.visible = False
+        self.frames = 0
+        self.eaten = 0
+        self.treat_died = 0
+        self.player_eaten = False
+        self.ghost_eaten = False
+
+    def move(self, grid):
+        self.frames += 1
+        if self.eaten > 0:
+            self.eaten += 1
+            if self.eaten > 20:
+                self.eaten = 0
+                self.player_eaten = False
+                self.ghost_eaten = False
+                self.treat_died = False
+
+        if self.frames > 10:
+            self.frames = 0
+            if self.visible:
+                self.count = self.count + 1
+                if self.count > 5:
+                    self.count = 0
+                    self.visible = False
+                    self.player_eaten = False
+                    self.ghost_eaten = False
+                    self.treat_died = True
+                    self.eaten = 1
+                    print("treat died")
+
+            else:
+                self.count = self.count + 1
+                if self.count > 2:
+                    if random.randint(0, 5) == 0:
+                        self.count = 0
+                        self.visible = True
+                        print("treat appears")
+                        self.index = random.randint(0, len(clear) - 1)
+
+    def player_eats(self):
+        if self.visible:
+            self.eaten = 1
+            self.player_eaten = True
+            print("player eats")
+
+    def ghost_eats(self, player):
+        if self.visible:
+            self.eaten = 1
+            self.ghost_eaten = True
+            print("ghost eats")
+            player.reduce_score()
+
+    def is_at_position(self, x, y):
+        if self.visible:
+            new_x, new_y = self.get_pos()
+            return new_x == x and new_y == y
+        else:
+            return False
+
+    def get_pos(self):
+        return clear[self.index][0], clear[self.index][1]
+
+    def draw(self, x, y):
+        c = Color("green")
+        new_x, new_y = self.get_pos()
+        if new_x == x and new_y == y:
+            if self.eaten > 0:
+                msg = "+1"
+                if self.ghost_eaten:
+                    c = Color("red")
+                    msg = "-1"
+                elif self.treat_died:
+                    c = Color("yellow")
+                    msg = ""
+                text_surface = my_font.render(msg, False, c)
+                pygame.draw.circle(screen, c, ((x * 100) + 50, (y * 100) + 50), 10 + (self.eaten), 5)
+                screen.blit(text_surface, (x * 100, y * 100 - (self.eaten * 5)))
+            elif self.is_at_position(x, y):
+                pygame.draw.circle(screen, c, ((x * 100) + 50, (y * 100) + 50), 10)
+
+    def set_invisible(self):
+        self.visible = False
+        self.count = 0
+
+
+class Ghost:
+
+    def __init__(self):
+        self.index = 0
+        self.speed = 1
+        self.frames = 0
+        self.steps = 0
+        self.direction = 1
+
+    def move(self, grid):
+        self.frames += 1
+        if self.frames >= 10 / self.speed:
+            self.frames = 0
+            self.index = self.index + self.direction
+            if self.speed != 1:
+                self.steps += 1
+                if self.steps > 3:
+                    print("slowdown")
+                    self.speed = 1
+                    self.steps = 0
+            elif allowghostspeed and random.randint(0, 10) == 0:
+                print("speedup")
+                self.speed = 2
+            if allowghostreverse and random.randint(0, 5) == 0:
+                self.direction *= -1
+            if self.index >= len(ghost_path):
+                self.index = 0
+            if self.index < 0:
+                self.index = len(ghost_path) - 1
+
+    def getOffset(self):
+        index = self.index
+        if self.direction < 0:
+            index = index -1
+            if index < 0:
+                index = len(ghost_path) - 1
+        x_diff = 0
+        y_diff = 0
+        if (ghostanimate == True):
+            x_diff = ghost_diff[index][0]
+            y_diff = ghost_diff[index][1]
+        if self.direction < 0:
+            return (x_diff * self.speed * self.frames * self.direction ), (y_diff * self.speed * self.frames * self.direction)
+        else:
+            return x_diff * self.speed * self.frames, y_diff * self.speed * self.frames
+
+    def is_at_position(self, x, y):
+        new_x = ghost_path[self.index][0]
+        new_y = ghost_path[self.index][1]
+        return new_x == x and new_y == y
+
+    def draw(self, x, y):
+        if self.is_at_position(x, y):
+            gx, gy = self.getOffset()
+            radius = abs(self.frames - 5) 
+        #                pygame.draw.circle(screen, Color("white"), ((col * 100) + 50 + gx, (rownum * 100) + 50) + gy, 20 + radius)
+            c = Color("white")
+            if self.speed != 1:
+                c = Color("yellow")
+            pygame.draw.circle(screen, c, ((x * 100) + 50 + gx, (y * 100) + 50 + gy), 20 + radius)
+
+    def pickup_treat(self, t, p):
+        x = ghost_path[self.index][0]
+        y = ghost_path[self.index][1]
+        if t.is_at_position(x, y):
+            print("ghost ate treat")
+            t.ghost_eats(p)
+            t.set_invisible()
+
+
+def print_grid(me, ghost, treat):
+    #    os.system('cls')
+    # ∧∨
+    for rownum in range(len(grid)):
+        row = grid[rownum]
+        for col in range(len(row)):
+            j = row[col]
+            if me.is_player(col, rownum):
+                print(me.get_character(), end="")
+            elif ghost.is_player(col, rownum):
+                print('@', end="")
+            elif treat.is_here(col, rownum):
+                print("*", end="")
+            elif j == 1:
+                print('∎', end="")
+            elif j == 0:
+                print(' ', end="")
+        print()
+
+def paint_grid(screen, player, ghost, treat):
+    screen.fill("black")
+    x, y = player.getOffset()
+    for rownum in range(len(grid)):
+        row = grid[rownum]
+        for col in range(len(row)):
+            j = row[col]
+            ghost.draw(col, rownum)
+            player.draw(col, rownum)
+            if j == 1:
+                pygame.draw.rect(screen, Color("white"), (col * 100, rownum * 100, 100, 100))
+            treat.draw(col, rownum)
+
+
+# def run_game():
+#     c = Player()
+#     g = Ghost()
+#     t = Treat()
+#     game_playing = True
+#     while game_playing:
+#         print_grid(c, g, t)
+#         key = input("keypress")
+#         if key == 'q':
+#             game_playing = False
+#         else:
+#             c.move(key, grid)
+#             g.move(grid)
+#             t.move()
+#             if c.is_collide(g):
+#                 print("game over!")
+#                 game_playing = False
+#             c.pickup_treat(t)
+#             g.pickup_treat(t)
+
+
+# a        time.sleep(1)
+
+
+
+x = 100
+y = 100
+p = Player()
+g = Ghost()
+t = Treat()
+while running:
+    # poll for events
+    p.animate()
+    g.move(grid)
+    if allowtreats:
+        t.move(grid)
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+        elif event.type == pygame.KEYDOWN:
+            p.move(event.key, grid)
+
+    if p.is_collide(g):
+        print("game over")
+        p.reduce_score()
+#        running = False
+    p.pickup_treat(t)
+    g.pickup_treat(t, p)
+
+    paint_grid(screen, p, g, t)
+
+
+    # flip() the display to put your work on screen
+    pygame.display.flip()
+
+    clock.tick(time)  # limits FPS to 60
+
+pygame.quit()
