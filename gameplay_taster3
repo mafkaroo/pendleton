@@ -1,23 +1,22 @@
 import math
-
+import random
 import pygame
 from pygame import Color
 
 # pygame setup
 pygame.init()
 pygame.font.init()
-square_size = 50
+square_size = 100
 my_font = pygame.font.SysFont('Verdana', square_size//2)
 screen = pygame.display.set_mode((square_size * 7, square_size * 5))
 clock = pygame.time.Clock()
 running = True
-allowtreats = True
-allowghostspeed = True
-allowghostreverse = True
-ghostanimate = True
+allowtreats = False
+allowghostspeed = False
+allowghostreverse = False
+ghostanimate = False
 time = 30 #40
 
-import random
 
 grid = [
     [1, 1, 1, 1, 1, 1, 1],
@@ -29,33 +28,9 @@ grid = [
 
 ghost_path = [
     (5, 3),
-    (5, 2),
-    (5, 1),
-    (4, 1),
-    (3, 1),
-    (2, 1),
-    (1, 1),
-    (2, 3),
-    (3, 3),
-
 ]
 
-ghost_diff = [
-     (0, -10),
-     (0, -10),
-     (-10, 0),
-     (-10, 0),
-     (-10, 0),
-     (-10, 0),
-     (0, 10),
-     (0, 10),
-     (10, 0),
-     (10, 0),
-     (10, 0),
-     (10, 0),
- ]
-
-clear = [
+treat_pos = [
     (1, 1),
     (5, 1),
     (3, 2),
@@ -94,12 +69,6 @@ class Player:
         new_y_offset = 0
         if key == pygame.K_w:
             new_y = new_y - 1
-        if key == pygame.K_s:
-            new_y = new_y + 1
-        if key == pygame.K_a:
-            new_x = new_x - 1
-        if key == pygame.K_d:
-            new_x = new_x + 1
 
         if grid[new_y][new_x] == 0:
             self.x = new_x
@@ -178,7 +147,7 @@ class Treat():
                         self.count = 0
                         self.visible = True
                         print("treat appears")
-                        self.index = random.randint(0, len(clear) - 1)
+                        self.index = random.randint(0, len(treat_pos) - 1)
 
     def player_eats(self):
         if self.visible:
@@ -201,7 +170,7 @@ class Treat():
             return False
 
     def get_pos(self):
-        return clear[self.index][0], clear[self.index][1]
+        return treat_pos[self.index][0], treat_pos[self.index][1]
 
     def draw(self, x, y):
         c = Color("green")
